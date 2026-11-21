@@ -1,24 +1,29 @@
-name: Build EXE
+name: build
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   build:
+    name: Build exe (Windows)
     runs-on: windows-latest
+    timeout-minutes: 20
     env:
       PYTHONIOENCODING: utf-8
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -26,29 +31,69 @@ jobs:
           python-version: "3.12"
 
       - name: Install PyInstaller
-        run: python -m pip install --upgrade pip pyinstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
 
       - name: Build single-file exe
         run: python build_exe.py
 
+      - name: Verify output
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/LanProbe.exe")) { throw "dist/LanProbe.exe not found" }
+          $size = [math]::Round((Get-Item "dist/LanProbe.exe").Length / 1MB, 1)
+          Write-Host "LanProbe.exe = $size MB"
+
+      - name: Smoke test (start and query API)
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "dist/LanProbe.exe" -ArgumentList "--no-open", "--port", "8899"
+          Start-Sleep -Seconds 12
+          try {
+            $r = Invoke-WebRequest "http://127.0.0.1:8899/api/state" -UseBasicParsing -TimeoutSec 30
+            if ($r.StatusCode -ne 200) { throw "HTTP $($r.StatusCode)" }
+            $j = $r.Content | ConvertFrom-Json
+            if (-not $j.ok) { throw "API returned ok=false" }
+            Write-Host "smoke test passed; nmap available = $($j.nmap.available)"
+          }
+          finally {
+            taskkill /IM LanProbe.exe /F 2>$null
+          }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lan-explorer-windows
+          name: lan-probe-windows-x64
           path: dist/LanProbe.exe
           if-no-files-found: error
+          retention-days: 30
 
-      - name: Attach exe to release
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: lan-probe-windows-x64
+          path: dist
+
+      - name: Rename asset
+        run: mv dist/LanProbe.exe "dist/lan-explorer-${GITHUB_REF_NAME}.exe"
+
+      - name: Create or update release
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = "${{ github.ref_name }}"
-          Copy-Item "dist/LanProbe.exe" "dist/lan-explorer-$tag.exe"
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $tag "dist/lan-explorer-$tag.exe" --clobber
-          } else {
-            gh release create $tag "dist/lan-explorer-$tag.exe" --title "LAN 探针 $tag" --generate-notes
-          }
+          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "LAN 探针 ${GITHUB_REF_NAME}" \
+              --generate-notes
+          fi
+          gh release upload "$GITHUB_REF_NAME" \
+            "dist/lan-explorer-${GITHUB_REF_NAME}.exe" --clobber
+          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[] | .name'
