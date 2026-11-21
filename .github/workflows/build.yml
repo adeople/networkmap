@@ -41,14 +41,14 @@ jobs:
       - name: Verify output
         shell: pwsh
         run: |
-          if (-not (Test-Path "dist/LanProbe.exe")) { throw "dist/LanProbe.exe not found" }
-          $size = [math]::Round((Get-Item "dist/LanProbe.exe").Length / 1MB, 1)
-          Write-Host "LanProbe.exe = $size MB"
+          if (-not (Test-Path "dist/networkmap.exe")) { throw "dist/networkmap.exe not found" }
+          $size = [math]::Round((Get-Item "dist/networkmap.exe").Length / 1MB, 1)
+          Write-Host "networkmap.exe = $size MB"
 
       - name: Smoke test (start and query API)
         shell: pwsh
         run: |
-          Start-Process -FilePath "dist/LanProbe.exe" -ArgumentList "--no-open", "--port", "8899"
+          Start-Process -FilePath "dist/networkmap.exe" -ArgumentList "--no-open", "--port", "8899"
           try {
             $ok = $false
             for ($i = 1; $i -le 6; $i++) {
@@ -66,14 +66,14 @@ jobs:
             Write-Host "smoke test passed; nmap available = $($j.nmap.available)"
           }
           finally {
-            taskkill /IM LanProbe.exe /F 2>$null
+            taskkill /IM networkmap.exe /F 2>$null
           }
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: networkmap-windows-x64
-          path: dist/LanProbe.exe
+          path: dist/networkmap.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -91,7 +91,7 @@ jobs:
           path: dist
 
       - name: Rename asset
-        run: mv dist/LanProbe.exe "dist/networkmap-${GITHUB_REF_NAME}.exe"
+        run: mv dist/networkmap.exe "dist/networkmap-${GITHUB_REF_NAME}.exe"
 
       - name: Create or update release
         env:
@@ -99,7 +99,7 @@ jobs:
         run: |
           if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" \
-              --title "LAN 探针 ${GITHUB_REF_NAME}" \
+              --title "networkmap ${GITHUB_REF_NAME}" \
               --generate-notes
           fi
           gh release upload "$GITHUB_REF_NAME" \

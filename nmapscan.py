@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-LAN 探针 · nmap 深度扫描模块（可选功能，需本机安装 nmap）
+networkmap · nmap 深度扫描模块（可选功能，需本机安装 nmap）
 
 - 调用本机 nmap 对指定目标做端口 + 服务指纹 + NSE 脚本扫描
 - 命令基底：nmap -sT -sV --version-light -Pn -oX <xml> [档位] [脚本] [时序] <targets...>

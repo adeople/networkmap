@@ -1,4 +1,4 @@
-/* ============ LAN 探针 · 前端逻辑 ============ */
+/* ============ networkmap · 前端逻辑 ============ */
 "use strict";
 
 const $ = s => document.querySelector(s);
@@ -134,8 +134,8 @@ function render() {
   renderGrid();
   renderFooter();
   document.title = S.scanning
-    ? `扫描中 ${S.progress}% · LAN 探针`
-    : (S.nmap && S.nmap.running ? `nmap 深度扫描中 · LAN 探针` : "LAN 探针 · 局域网设备与代理网关发现");
+    ? `扫描中 ${S.progress}% · networkmap`
+    : (S.nmap && S.nmap.running ? `nmap 深度扫描中 · networkmap` : "networkmap · 局域网设备与代理网关发现");
 }
 
 /* ---------------- 子网地图 ---------------- */
@@ -577,7 +577,7 @@ function exportReport() {
   const dt = new Date();
   const p2 = n => String(n).padStart(2, "0");
   const html = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>LAN 探针 · 扫描报告 ${dt.getFullYear()}-${p2(dt.getMonth() + 1)}-${p2(dt.getDate())}</title>
+<title>networkmap · 扫描报告 ${dt.getFullYear()}-${p2(dt.getMonth() + 1)}-${p2(dt.getDate())}</title>
 <style>
 body{font-family:"Segoe UI","Microsoft YaHei",sans-serif;max-width:1080px;margin:30px auto;padding:0 24px;color:#1b2437;background:#fff}
 h1{font-size:22px}.meta{color:#6b7690;font-size:13px;margin-bottom:18px;line-height:1.9}
@@ -586,13 +586,13 @@ th,td{border:1px solid #e4e9f3;padding:7px 9px;text-align:left;vertical-align:to
 th{background:#f3f5fa}tr.off td{color:#9aa3b5;background:#fafbfe}
 td{word-break:break-all}
 </style></head><body>
-<h1>🛰️ LAN 探针 · 局域网扫描报告</h1>
+<h1>🛰️ networkmap · 局域网扫描报告</h1>
 <div class="meta">生成时间：${dt.toLocaleString("zh-CN")}<br>
 网卡：${esc(i.iface || "—")} · 本机：${esc(i.ip || "—")} · 网关：${esc(i.gateway || "—")} · 扫描范围：${esc(i.scanned_subnet || "—")}<br>
 系统代理：${sp.enabled ? esc(sp.server) + "（已开启）" : "未开启"} · 设备总数：${c.all} · 在线：${c.alive} · 代理节点：${c.proxy} · 有备注：${c.noted}</div>
 <table><thead><tr><th>IP</th><th>名称</th><th>MAC</th><th>厂商</th><th>状态</th><th>标签</th><th>代理端口</th><th>nmap 端口/服务</th><th>备注</th></tr></thead>
 <tbody>${rows}</tbody></table>
-<p style="color:#9aa3b5;font-size:11px;margin-top:16px">由 LAN 探针生成${S.nmap && S.nmap.last_ts ? " · nmap 深度扫描时间 " + fmtTime(S.nmap.last_ts) : " · nmap 深度扫描未执行"}</p>
+<p style="color:#9aa3b5;font-size:11px;margin-top:16px">由 networkmap生成${S.nmap && S.nmap.last_ts ? " · nmap 深度扫描时间 " + fmtTime(S.nmap.last_ts) : " · nmap 深度扫描未执行"}</p>
 </body></html>`;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([html], { type: "text/html;charset=utf-8" }));

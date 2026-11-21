@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛰️ LAN 探针
+# 🛰️ networkmap
 
 **发现局域网设备、识别代理网关，并给每台设备建立可长期维护的备注台账。**
 
@@ -14,12 +14,12 @@
 
 </div>
 
-![LAN 探针界面](images/screenshot.png)
+![networkmap界面](images/screenshot.png)
 
 <details>
 <summary>深色主题</summary>
 
-![LAN 探针深色主题](images/screenshot-dark.png)
+![networkmap深色主题](images/screenshot-dark.png)
 
 </details>
 
@@ -93,7 +93,7 @@ nmap 的 UDP / SYN 扫描与 OS 指纹才需要 Npcap 驱动。
 ```bat
 python -m pip install pyinstaller
 python build_exe.py
-:: 产物：dist/LAN探针.exe（单文件，约 10 MB）
+:: 产物：dist/networkmap.exe（单文件，约 10 MB）
 ```
 
 ---
@@ -119,7 +119,7 @@ git push origin v0.2.0
 ## 数据与隐私
 
 首次运行会在 **exe / 脚本所在目录** 生成以下文件（目录不可写时回退到
-`%LOCALAPPDATA%\LanProbe`）：
+`%LOCALAPPDATA%\networkmap`）：
 
 | 文件 | 内容 |
 |---|---|

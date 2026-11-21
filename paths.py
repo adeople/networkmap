@@ -6,7 +6,7 @@
     RES_DIR  = sys._MEIPASS（临时解包目录，只读资源：static）
     DATA_DIR = exe 所在目录（可写：notes.json / history.json / nmap_results.json …）
   exe 所在目录不可写时（如放在 Program Files），自动回退到
-  %LOCALAPPDATA%\\LanProbe
+  %LOCALAPPDATA%\\networkmap
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ FROZEN = bool(getattr(sys, "frozen", False))
 def _writable(path: str) -> bool:
     try:
         os.makedirs(path, exist_ok=True)
-        probe = os.path.join(path, ".lanprobe_probe")
+        probe = os.path.join(path, ".networkmap_probe")
         with open(probe, "w", encoding="utf-8") as f:
             f.write("ok")
         os.remove(probe)
@@ -33,7 +33,7 @@ if FROZEN:
     _exe_dir = os.path.dirname(os.path.abspath(sys.executable))
     _fallback = os.path.join(
         os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"),
-        "LanProbe")
+        "networkmap")
     DATA_DIR = _exe_dir if _writable(_exe_dir) else _fallback
 else:
     RES_DIR = os.path.dirname(os.path.abspath(__file__))

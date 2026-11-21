@@ -6,13 +6,11 @@
     python build_exe.py --dir      # 额外构建一个目录版（启动更快，便于排错）
 
 产物：
-    dist/LanProbe.exe      英文名（稳定，适合脚本调用）
-    dist/LAN探针.exe        中文名副本（双击使用）
+    dist/networkmap.exe           单文件版（双击使用）
 """
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import sys
 
@@ -56,7 +54,7 @@ def main():
     common = [
         sys.executable, "-m", "PyInstaller",
         "--noconfirm", "--clean", "--onefile",
-        "--name", "LanProbe",
+        "--name", "networkmap",
         "--icon", ICON,
         "--add-data", os.path.join("static") + os.pathsep + "static",
         "--exclude-module", "tkinter",
@@ -72,21 +70,17 @@ def main():
     if r.returncode != 0:
         sys.exit("构建失败，请查看上面的输出")
 
-    exe = os.path.join(ROOT, "dist", "LanProbe.exe")
+    exe = os.path.join(ROOT, "dist", "networkmap.exe")
     if not os.path.isfile(exe):
-        sys.exit("未找到 dist/LanProbe.exe")
-
-    cn = os.path.join(ROOT, "dist", "LAN探针.exe")
-    shutil.copy2(exe, cn)
+        sys.exit("未找到 dist/networkmap.exe")
     print(f"\n✅ 单文件版: {exe}  ({os.path.getsize(exe) / 1024 / 1024:.1f} MB)")
-    print(f"✅ 中文名副本: {cn}")
 
     if "--dir" in sys.argv:
         print("\n=== 构建目录版 ===")
         dir_args = [
             sys.executable, "-m", "PyInstaller",
             "--noconfirm", "--clean",
-            "--name", "LanProbeDir",
+            "--name", "networkmap-dir",
             "--icon", ICON,
             "--add-data", os.path.join("static") + os.pathsep + "static",
             "--exclude-module", "tkinter",
@@ -97,10 +91,10 @@ def main():
             "server.py",
         ]
         _run(dir_args)
-        print("✅ 目录版: dist/LanProbeDir/LanProbeDir.exe")
+        print("✅ 目录版: dist/networkmap-dir/networkmap-dir.exe")
 
     print("\n提示：exe 首次运行会在其所在目录生成 notes.json / history.json / "
-          "nmap_results.json；目录不可写时自动改用 %LOCALAPPDATA%\\LanProbe")
+          "nmap_results.json；目录不可写时自动改用 %LOCALAPPDATA%\\networkmap")
 
 
 if __name__ == "__main__":

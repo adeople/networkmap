@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-LAN 探针 · 本地 Web 服务（纯 Python 标准库，无第三方依赖）
+networkmap · 本地 Web 服务（纯 Python 标准库，无第三方依赖）
 
 - GET  /            前端页面（static/）
 - GET  /api/state   网络信息 + 设备列表 + 扫描状态（备注已合并）
@@ -79,7 +79,7 @@ def _save_note(key: str, alias: str, note: str) -> bool:
 
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
-    server_version = "LanExplorer/1.0"
+    server_version = "networkmap/1.0"
 
     def log_message(self, fmt, *args):  # 静默访问日志
         pass
@@ -310,7 +310,7 @@ def main():
 
     url = f"http://{'127.0.0.1' if host=='127.0.0.1' else host}:{port}"
     print("=" * 52)
-    print("  LAN 探针 已启动:", url)
+    print("  networkmap 已启动:", url)
     print("  数据目录:", paths.DATA_DIR)
     print("  备注数据:", NOTES_FILE)
     if paths.FROZEN:

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-LAN 探针 · 局域网扫描引擎（纯 Python 标准库，面向 Windows）
+networkmap · 局域网扫描引擎（纯 Python 标准库，面向 Windows）
 
 能力：
 - 识别本机网卡（IP / MAC / 网关 / DNS / 子网）
@@ -376,7 +376,7 @@ def _verify_proxy(ip: str, port: int) -> str:
         s.settimeout(2.5)
         s.sendall(b"GET http://www.msftconnecttest.com/connecttest.txt HTTP/1.1\r\n"
                   b"Host: www.msftconnecttest.com\r\n"
-                  b"User-Agent: lan-explorer\r\nConnection: close\r\n\r\n")
+                  b"User-Agent: networkmap\r\nConnection: close\r\n\r\n")
         d = b""
         while len(d) < 4096:
             try:
