@@ -50,7 +50,7 @@
 
 ### 方式一：直接运行 exe（无需 Python）
 
-从 [Releases](../../releases) 下载 `LAN探针.exe`，双击运行，浏览器会自动打开
+从 [Releases](../../releases) 下载 `lan-explorer-v0.1.0.exe`，双击运行，浏览器会自动打开
 <http://127.0.0.1:8791>。
 
 ### 方式二：源码运行（零第三方依赖）
