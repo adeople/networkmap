@@ -16,6 +16,15 @@ import shutil
 import subprocess
 import sys
 
+# CI（如 GitHub Actions 的 Windows 运行器）stdout 可能是 cp1252，
+# 直接打印中文/emoji 会抛 UnicodeEncodeError，这里做兜底
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if "utf" not in (_stream.encoding or "").lower():
+            _stream.reconfigure(errors="replace")
+    except Exception:
+        pass
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 ASSETS = os.path.join(ROOT, "assets")
 ICON = os.path.join(ASSETS, "app.ico")
