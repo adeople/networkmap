@@ -96,12 +96,14 @@ jobs:
       - name: Create or update release
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
-          if ! gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$REPO" >/dev/null 2>&1; then
             gh release create "$GITHUB_REF_NAME" \
+              --repo "$REPO" \
               --title "networkmap ${GITHUB_REF_NAME}" \
               --generate-notes
           fi
           gh release upload "$GITHUB_REF_NAME" \
-            "dist/networkmap-${GITHUB_REF_NAME}.exe" --clobber
-          gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[] | .name'
+            "dist/networkmap-${GITHUB_REF_NAME}.exe" --repo "$REPO" --clobber
+          gh release view "$GITHUB_REF_NAME" --repo "$REPO" --json assets --jq '.assets[] | .name'
