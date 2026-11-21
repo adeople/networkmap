@@ -29,6 +29,9 @@ STATIC = paths.STATIC_DIR
 NOTES_FILE = paths.data_file("notes.json")
 DEFAULT_PORT = 8791
 
+# 局域网访问状态（--lan 时启用，手机扫码直接打开，无需登录）
+LAN = {"enabled": False, "ip": "", "port": DEFAULT_PORT, "url": ""}
+
 _notes_lock = threading.Lock()
 
 CONTENT_TYPES = {
@@ -38,7 +41,17 @@ CONTENT_TYPES = {
     ".svg": "image/svg+xml",
     ".png": "image/png",
     ".ico": "image/x-icon",
+    ".webmanifest": "application/manifest+json; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
 }
+
+
+def _lan_ip() -> str:
+    """本机在局域网中的 IPv4（UDP connect 探测，不实际发包）"""
+    try:
+        return scanner._self_ip_via_socket() or ""
+    except Exception:
+        return ""
 
 
 # ---------------------------------------------------------------- 备注
@@ -85,12 +98,13 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     # -- 基础响应 --
-    def _send(self, code: int, body, ctype: str = "application/json; charset=utf-8"):
+    def _send(self, code: int, body, ctype: str = "application/json; charset=utf-8",
+              cache: bool = False):
         data = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode()
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-cache" if cache else "no-store")
         self.end_headers()
         try:
             self.wfile.write(data)
@@ -115,7 +129,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(204, b"")
             else:
                 name = path.lstrip("/")
-                if "/" not in name and name:
+                if name:
                     self._serve_static(name)
                 else:
                     self._send_json_error(404, "not found")
@@ -224,6 +238,12 @@ class Handler(BaseHTTPRequestHandler):
             d["note"] = memo.get("note", "")
             d["has_note"] = bool(d["alias"] or d["note"])
         info = scanner.get_info()
+        info["lan"] = {
+            "enabled": LAN["enabled"],
+            "url": LAN["url"],
+            "ip": LAN["ip"],
+            "port": LAN["port"],
+        }
         # 系统代理指向的设备打标（127.0.0.1 视为本机）
         sp = info.get("system_proxy") or {}
         sp_host = sp.get("host", "")
@@ -261,13 +281,17 @@ class Handler(BaseHTTPRequestHandler):
         })
 
     def _serve_static(self, name: str):
-        full = os.path.normpath(os.path.join(STATIC, os.path.basename(name)))
-        if not full.startswith(STATIC) or not os.path.isfile(full):
+        """静态资源（支持 static/ 下的子目录，如 vendor/qrcode.js）"""
+        rel = name.replace("/", os.sep).replace("\\", os.sep)
+        full = os.path.normpath(os.path.join(STATIC, rel))
+        base = os.path.normpath(STATIC) + os.sep
+        if not full.startswith(base) or not os.path.isfile(full):
             return self._send_json_error(404, "not found")
         ext = os.path.splitext(full)[1].lower()
         with open(full, "rb") as f:
             body = f.read()
-        self._send(200, body, CONTENT_TYPES.get(ext, "application/octet-stream"))
+        self._send(200, body, CONTENT_TYPES.get(ext, "application/octet-stream"),
+                   cache=True)
 
 
 # ---------------------------------------------------------------- 启动
@@ -285,7 +309,8 @@ def main():
             port = int(args[args.index("--port") + 1])
         except (ValueError, IndexError):
             pass
-    host = "127.0.0.1"
+    lan_mode = "--lan" in args
+    host = "0.0.0.0" if lan_mode else "127.0.0.1"
     if "--host" in args:
         i = args.index("--host")
         if i + 1 < len(args):
@@ -309,12 +334,26 @@ def main():
         return
 
     url = f"http://{'127.0.0.1' if host=='127.0.0.1' else host}:{port}"
+
+    # 局域网（手机访问）模式
+    if lan_mode:
+        ip = _lan_ip()
+        LAN.update(enabled=True, ip=ip, port=port,
+                   url=f"http://{ip}:{port}/" if ip else "")
+
     print("=" * 52)
     print("  networkmap 已启动:", url)
+    if LAN["enabled"] and LAN["url"]:
+        print("  📱 手机访问:", LAN["url"])
+        print("     手机与电脑连同一 Wi-Fi，扫码或输入上面地址即可")
+    elif lan_mode:
+        print("  📱 已启用局域网模式，但未取到本机 IP")
+    else:
+        print("  提示：加 --lan 启动可让手机访问（同一 Wi-Fi）")
     print("  数据目录:", paths.DATA_DIR)
     print("  备注数据:", NOTES_FILE)
     if paths.FROZEN:
-        print("  提示：关闭本窗口即退出工具")
+        print("  关闭本窗口即退出工具")
     print("=" * 52)
     if "--no-open" not in args:
         threading.Timer(0.8, webbrowser.open, [url]).start()

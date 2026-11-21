@@ -2,8 +2,17 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>networkmap · 局域网设备与代理网关发现</title>
+<meta name="theme-color" content="#f3f5fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c111e" media="(prefers-color-scheme: dark)">
+<meta name="description" content="局域网设备与代理网关发现，支持设备备注与 nmap 深度扫描">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="networkmap">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
@@ -19,10 +28,11 @@
     </div>
     <div class="head-actions">
       <button class="btn ghost" id="themeBtn" title="切换深浅色">🌙</button>
-      <button class="btn ghost" id="csvBtn" title="导出设备清单 CSV">⬇️ CSV</button>
-      <button class="btn ghost" id="reportBtn" title="导出独立 HTML 扫描报告">📑 报告</button>
-      <button class="btn ghost" id="histBtn" title="扫描历史与变化对比">🕘 历史</button>
-      <button class="btn ghost" id="nmapBtn" title="调用本机 nmap 对在线设备做端口 / 服务指纹深度扫描">🎯 深度扫描</button>
+      <button class="btn ghost" id="csvBtn" title="导出设备清单 CSV">⬇️ <span class="lbl">CSV</span></button>
+      <button class="btn ghost" id="reportBtn" title="导出独立 HTML 扫描报告">📑 <span class="lbl">报告</span></button>
+      <button class="btn ghost" id="histBtn" title="扫描历史与变化对比">🕘 <span class="lbl">历史</span></button>
+      <button class="btn ghost" id="nmapBtn" title="调用本机 nmap 对在线设备做端口 / 服务指纹深度扫描">🎯 <span class="lbl">深度扫描</span></button>
+      <button class="btn ghost desktop-only" id="lanBtn" title="用手机访问（局域网）">📱 <span class="lbl">手机访问</span></button>
       <button class="btn primary" id="scanBtn">开始扫描</button>
     </div>
   </div>
@@ -95,7 +105,7 @@
 <footer class="wrap foot">
   <span id="lastScan">未扫描</span>
   <span class="dot">·</span>
-  <span>本工具仅监听 127.0.0.1，数据保存在本地 notes.json</span>
+  <span>数据保存在本地 notes.json · 仅本机或局域网内可访问</span>
 </footer>
 
 <!-- 备注编辑弹窗 -->
@@ -169,7 +179,7 @@
     </div>
     <label class="m-field">
       <span>扫描目标（单 IP · CIDR · 范围，逗号或空格分隔，最多 64 条）</span>
-      <textarea id="nmapTargets" rows="3" placeholder="192.168.1.1 192.168.1.130&#10;或 192.168.1.0/24&#10;或 192.168.1.1-254"></textarea>
+      <textarea id="nmapTargets" rows="3" placeholder="192.168.1.1 192.168.1.10&#10;或 192.168.1.0/24&#10;或 192.168.1.1-254"></textarea>
     </label>
     <div class="m-grid">
       <label class="m-field">
@@ -220,6 +230,27 @@
   </div>
 </div>
 
+<!-- 手机访问 -->
+<div class="overlay" id="lanOv" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="m-head">
+      <span class="m-ico">📱</span>
+      <div class="m-title">
+        <b>手机访问</b>
+        <span class="m-sub">电脑与手机需连接同一个 Wi-Fi</span>
+      </div>
+      <button class="m-close" id="lanClose">✕</button>
+    </div>
+    <div id="lanBody" class="lan-body"></div>
+    <div class="m-foot">
+      <span class="spacer"></span>
+      <button class="btn" id="lanCopy">📋 复制链接</button>
+      <button class="btn primary" id="lanOk">知道了</button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/qrcode.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

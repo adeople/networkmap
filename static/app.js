@@ -18,6 +18,8 @@ const els = {
   histBtn: $("#histBtn"), histOv: $("#histOv"), histClose: $("#histClose"),
   histList: $("#histList"), histDiff: $("#histDiff"),
   reportBtn: $("#reportBtn"),
+  lanBtn: $("#lanBtn"), lanOv: $("#lanOv"), lanClose: $("#lanClose"),
+  lanOk: $("#lanOk"), lanCopy: $("#lanCopy"), lanBody: $("#lanBody"),
   mapBtn: $("#mapBtn"), mapPanel: $("#mapPanel"),
   mapGrid: $("#mapGrid"), mapSubnet: $("#mapSubnet"),
   grid: $("#grid"), empty: $("#empty"), lastScan: $("#lastScan"),
@@ -110,7 +112,7 @@ async function refresh() {
       startScan();
     }
   } catch (e) {
-    els.netinfo.innerHTML = `<span class="ni-item">⚠️ 无法连接后端服务，请确认 server.py 正在运行</span>`;
+    els.netinfo.innerHTML = `<span class="ni-item">⚠️ 无法连接后端服务，请确认电脑端 networkmap 正在运行</span>`;
   }
 }
 
@@ -171,7 +173,9 @@ function renderNmapProgress() {
   if (!n) return;
   els.nmapProgWrap.hidden = !n.running;
   els.nmapBtn.disabled = n.running;
-  els.nmapBtn.textContent = n.running ? `⏳ 深度扫描 ${n.progress}%` : "🎯 深度扫描";
+  els.nmapBtn.innerHTML = n.running
+    ? `⏳ <span class="lbl">深度扫描 ${n.progress}%</span>`
+    : `🎯 <span class="lbl">深度扫描</span>`;
   if (!n.running) return;
   els.nmapProgBar.style.width = Math.max(4, n.progress) + "%";
   els.nmapPhaseText.textContent = `${n.phase}…`;
@@ -243,7 +247,9 @@ function renderProgress() {
   els.phaseText.textContent = S.scanning ? `${S.phase}…` : "";
   els.detailText.textContent = S.scanning ? (S.detail || "") : "";
   els.scanBtn.disabled = S.scanning;
-  els.scanBtn.textContent = S.scanning ? `⏳ 扫描中 ${S.progress}%` : "开始扫描";
+  els.scanBtn.innerHTML = S.scanning
+    ? `⏳ ${S.progress}%`
+    : "开始扫描";
 }
 
 function deviceCounts() {
@@ -414,7 +420,8 @@ function openModal(key) {
     els.mNmap.innerHTML = "";
   }
   els.overlay.hidden = false;
-  els.mAlias.focus();
+  // 触屏设备不自动聚焦，避免一打开就弹虚拟键盘
+  if (!window.matchMedia("(pointer: coarse)").matches) els.mAlias.focus();
 }
 
 function closeModal() { els.overlay.hidden = true; S.editingKey = null; }
@@ -602,6 +609,96 @@ td{word-break:break-all}
   toast("HTML 报告已导出");
 }
 
+/* ---------------- 手机访问（局域网 / PWA） ---------------- */
+function isIOS() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    navigator.standalone === true;
+}
+
+function openLanModal() {
+  els.lanOv.hidden = false;
+  renderLanBody();
+}
+
+function renderLanBody() {
+  const lan = (S.info && S.info.lan) || {};
+  const ios = isIOS();
+  const steps = ios
+    ? `<ol>
+         <li>点 Safari 底部的 <b>分享</b> 按钮</li>
+         <li>选择 <b>添加到主屏幕</b></li>
+         <li>点右上角 <b>添加</b>，桌面会出现 networkmap 图标</li>
+       </ol>`
+    : `<ol>
+         <li>点 Chrome 右上角 <b>⋮</b> 菜单</li>
+         <li>选择 <b>安装应用</b> 或 <b>添加到主屏幕</b></li>
+       </ol>`;
+  if (!lan.enabled) {
+    els.lanCopy.hidden = true;
+    els.lanBody.innerHTML = `
+      <div class="lan-steps">
+        手机访问需要以「局域网模式」启动，且电脑与手机连接同一个 Wi-Fi。
+        关闭当前程序后，用下面任一方式重新启动：
+        <span class="lan-cmd">networkmap.exe --lan</span>
+        <span class="lan-cmd">python server.py --lan</span>
+        重启后再次点击「📱 手机访问」，即可看到二维码和访问链接。
+      </div>`;
+    return;
+  }
+  els.lanCopy.hidden = false;
+  const url = lan.url || "";
+  els.lanBody.innerHTML = `
+    <div class="lan-qr" id="lanQr"></div>
+    <div class="lan-url">${esc(url)}</div>
+    <div class="lan-steps">
+      <b>${ios ? "iPhone / iPad 安装到主屏幕：" : "安卓安装到主屏幕："}</b>
+      ${steps}
+      ${isStandalone() ? "<b>✓ 当前已作为独立应用运行</b>" : ""}
+    </div>
+    <div class="lan-warn">局域网内同一 Wi-Fi 的设备都可访问，请仅在可信网络中开启此模式。</div>`;
+  const qrEl = document.getElementById("lanQr");
+  try {
+    if (window.qrcode && url) {
+      const qr = qrcode(0, "M");
+      qr.addData(url);
+      qr.make();
+      qrEl.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    } else {
+      qrEl.textContent = "二维码不可用，请复制链接";
+    }
+  } catch (e) {
+    qrEl.textContent = "二维码生成失败，请复制链接";
+  }
+}
+
+async function copyLanLink() {
+  const lan = (S.info && S.info.lan) || {};
+  if (!lan.url) return;
+  try {
+    await navigator.clipboard.writeText(lan.url);
+    toast("链接已复制，发送到手机即可打开");
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = lan.url;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand("copy");
+      toast("链接已复制");
+    } catch (_) {
+      toast("复制失败，请手动选择链接");
+    }
+    ta.remove();
+  }
+}
+
 /* ---------------- 主题 ---------------- */
 function applyTheme() {
   const saved = localStorage.getItem("lan.dark");
@@ -637,6 +734,11 @@ els.histBtn.addEventListener("click", openHistory);
 els.histClose.addEventListener("click", () => { els.histOv.hidden = true; });
 els.histOv.addEventListener("click", e => { if (e.target === els.histOv) els.histOv.hidden = true; });
 els.reportBtn.addEventListener("click", exportReport);
+els.lanBtn.addEventListener("click", openLanModal);
+els.lanClose.addEventListener("click", () => { els.lanOv.hidden = true; });
+els.lanOk.addEventListener("click", () => { els.lanOv.hidden = true; });
+els.lanCopy.addEventListener("click", copyLanLink);
+els.lanOv.addEventListener("click", e => { if (e.target === els.lanOv) els.lanOv.hidden = true; });
 els.mapBtn.addEventListener("click", () => {
   showMap = !showMap;
   els.mapBtn.classList.toggle("on", showMap);
@@ -675,8 +777,19 @@ document.addEventListener("keydown", e => {
     els.nmapHelp.hidden = true;
     els.nmapOpts.hidden = true;
     els.histOv.hidden = true;
+    els.lanOv.hidden = true;
   }
 });
+
+/* ---------------- PWA ---------------- */
+if ("serviceWorker" in navigator) {
+  // 局域网 http 下浏览器不允许注册 SW，仅本机/HTTPS 注册（安装到主屏幕不受影响）
+  const secure = location.protocol === "https:" ||
+    ["127.0.0.1", "localhost"].includes(location.hostname);
+  if (secure) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+}
 
 /* ---------------- 启动 ---------------- */
 applyTheme();

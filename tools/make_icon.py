@@ -33,16 +33,17 @@ def _sd_round_rect(px: float, py: float, x: float, y: float,
     return math.hypot(ax, ay) + min(max(qx, qy), 0.0) - r
 
 
-def _render(size: int) -> bytes:
-    """返回 size×size 的 RGBA 原始字节"""
-    S = size * SS
+def _render(size: int, full_bleed: bool = False) -> bytes:
+    """返回 size×size 的 RGBA 原始字节（full_bleed=True 用于 iOS 主屏幕图标，铺满不透明）"""
+    S = size * (2 if size >= 384 else SS)
     buf = bytearray(S * S * 4)
 
-    margin = 0.015 * S
-    corner = 0.225 * S
+    margin = 0 if full_bleed else 0.015 * S
+    corner = 0 if full_bleed else 0.225 * S
+    scale = 1.0 if not full_bleed else 1.12
     cx, cy = 0.5 * S, 0.53 * S
-    maxr = 0.385 * S
-    rings = [0.145 * S, 0.255 * S, 0.365 * S]
+    maxr = 0.385 * S * scale
+    rings = [0.145 * S * scale, 0.255 * S * scale, 0.365 * S * scale]
     stroke = max(1.6, 0.018 * S)
     blips = [(0.625, 0.355), (0.335, 0.285), (0.665, 0.675), (0.435, 0.745)]
     blip_r = 0.030 * S
@@ -110,19 +111,20 @@ def _render(size: int) -> bytes:
             buf[i + 3] = int(255 * a_bg)
 
     # ---- 降采样 ----
+    ss = 2 if size >= 384 else SS
     out = bytearray(size * size * 4)
     for y in range(size):
         for x in range(size):
             r = g = b = a = 0
-            for dy in range(SS):
-                base = ((y * SS + dy) * S + x * SS) * 4
-                for dx in range(SS):
+            for dy in range(ss):
+                base = ((y * ss + dy) * S + x * ss) * 4
+                for dx in range(ss):
                     j = base + dx * 4
                     r += buf[j]
                     g += buf[j + 1]
                     b += buf[j + 2]
                     a += buf[j + 3]
-            n = SS * SS
+            n = ss * ss
             k = (y * size + x) * 4
             out[k] = r // n
             out[k + 1] = g // n
@@ -168,6 +170,18 @@ def main():
         f.write(header + entries + body)
     print("icon:", ico_path, os.path.getsize(ico_path), "bytes")
     print("preview:", os.path.join(ASSETS, "preview.png"))
+
+    # PWA / iOS 主屏幕图标
+    static_dir = os.path.join(ROOT, "static")
+    os.makedirs(static_dir, exist_ok=True)
+    for size, name in ((192, "icon-192.png"), (512, "icon-512.png")):
+        with open(os.path.join(static_dir, name), "wb") as f:
+            f.write(_png(size, size, _render(size)))
+    with open(os.path.join(static_dir, "apple-touch-icon.png"), "wb") as f:
+        f.write(_png(180, 180, _render(180, full_bleed=True)))
+    with open(os.path.join(static_dir, "icon-maskable-512.png"), "wb") as f:
+        f.write(_png(512, 512, _render(512, full_bleed=True)))
+    print("pwa icons:", static_dir, "(192 / 512 / maskable 512 / apple-touch 180)")
 
 
 if __name__ == "__main__":
