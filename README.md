@@ -98,6 +98,24 @@ python build_exe.py
 
 ---
 
+## 自动化构建
+
+仓库内置 [`.github/workflows/build.yml`](.github/workflows/build.yml)，在 Windows 运行器上自动打包并做启动冒烟测试：
+
+| 触发方式 | 行为 |
+|---|---|
+| 推送到 `main` / 提交 PR | 构建 exe，启动后请求 `/api/state` 校验服务可用 |
+| Actions 页面手动 Run workflow | 同上，产物可在运行记录的 Artifacts 中下载（保留 30 天） |
+| 推送 `v*` 标签 | 构建通过后自动上传 `lan-explorer-<tag>.exe` 到对应 Release |
+
+```bat
+:: 发布新版本：打 tag 并推送，Actions 会自动构建并挂到 Release
+git tag -a v0.2.0 -m "v0.2.0"
+git push origin v0.2.0
+```
+
+---
+
 ## 数据与隐私
 
 首次运行会在 **exe / 脚本所在目录** 生成以下文件（目录不可写时回退到
