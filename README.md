@@ -10,6 +10,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4?logo=windows&logoColor=white)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#依赖)
+[![Build EXE](https://github.com/adeople/lan-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/adeople/lan-explorer/actions/workflows/build.yml)
 
 </div>
 
