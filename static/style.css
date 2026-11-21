@@ -61,6 +61,7 @@ header {
 h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
 .sub { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
 .head-actions { display: flex; gap: 8px; align-items: center; }
+.mobile-only { display: none; }
 
 /* ---------- 按钮 ---------- */
 .btn {
@@ -412,6 +413,17 @@ h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
   font-family: var(--mono); font-size: 12px; word-break: break-all;
 }
 
+/* ---------- 手机端「更多操作」 ---------- */
+.more-list { display: grid; gap: 8px; margin-top: 12px; }
+.more-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 13px 14px; font-size: 14px; font-family: inherit; text-align: left;
+  border-radius: 12px; border: 1px solid var(--line);
+  background: var(--card2); color: var(--text); cursor: pointer;
+}
+.more-item:active { transform: scale(.985); }
+@media (min-width: 761px) { .more-list { display: none; } }
+
 /* ---------- 手机端适配 ---------- */
 @media (max-width: 760px) {
   html { -webkit-text-size-adjust: 100%; }
@@ -426,15 +438,16 @@ h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
   h1 { font-size: 15px; white-space: nowrap; }
   .sub { display: none; }
   .head-actions {
-    gap: 4px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden;
-    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    gap: 4px; flex-wrap: nowrap; overflow: visible;
     padding-bottom: 2px; margin-left: auto;
   }
-  .head-actions::-webkit-scrollbar { display: none; }
   .head-actions .btn {
     padding: 7px 9px; font-size: 12.5px; border-radius: 10px; flex: none;
   }
   .head-actions .lbl { display: none; }
+  /* 次要操作收进「⋯」菜单，主操作始终可见，小屏不挤压 */
+  .head-actions .act-secondary { display: none !important; }
+  .mobile-only { display: inline-flex; }
   .head-actions #scanBtn { padding: 7px 12px; font-weight: 600; }
   .desktop-only { display: none !important; }
 

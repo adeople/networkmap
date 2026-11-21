@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
@@ -14,7 +14,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛰️</text></svg>">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=0.2.1">
 </head>
 <body>
 <header>
@@ -28,11 +28,12 @@
     </div>
     <div class="head-actions">
       <button class="btn ghost" id="themeBtn" title="切换深浅色">🌙</button>
-      <button class="btn ghost" id="csvBtn" title="导出设备清单 CSV">⬇️ <span class="lbl">CSV</span></button>
-      <button class="btn ghost" id="reportBtn" title="导出独立 HTML 扫描报告">📑 <span class="lbl">报告</span></button>
-      <button class="btn ghost" id="histBtn" title="扫描历史与变化对比">🕘 <span class="lbl">历史</span></button>
-      <button class="btn ghost" id="nmapBtn" title="调用本机 nmap 对在线设备做端口 / 服务指纹深度扫描">🎯 <span class="lbl">深度扫描</span></button>
-      <button class="btn ghost desktop-only" id="lanBtn" title="用手机访问（局域网）">📱 <span class="lbl">手机访问</span></button>
+      <button class="btn ghost act-secondary" id="csvBtn" title="导出设备清单 CSV">⬇️ <span class="lbl">CSV</span></button>
+      <button class="btn ghost act-secondary" id="reportBtn" title="导出独立 HTML 扫描报告">📑 <span class="lbl">报告</span></button>
+      <button class="btn ghost act-secondary" id="histBtn" title="扫描历史与变化对比">🕘 <span class="lbl">历史</span></button>
+      <button class="btn ghost act-secondary" id="nmapBtn" title="调用本机 nmap 对在线设备做端口 / 服务指纹深度扫描">🎯 <span class="lbl">深度扫描</span></button>
+      <button class="btn ghost desktop-only act-secondary" id="lanBtn" title="用手机访问（局域网）">📱 <span class="lbl">手机访问</span></button>
+      <button class="btn ghost mobile-only" id="moreBtn" title="更多操作">⋯</button>
       <button class="btn primary" id="scanBtn">开始扫描</button>
     </div>
   </div>
@@ -230,6 +231,28 @@
   </div>
 </div>
 
+<!-- 手机端「更多操作」 -->
+<div class="overlay" id="moreOv" hidden>
+  <div class="modal" role="dialog" aria-modal="true">
+    <div class="m-head">
+      <span class="m-ico">⋯</span>
+      <div class="m-title">
+        <b>更多操作</b>
+        <span class="m-sub">导出、历史与深度扫描</span>
+      </div>
+      <button class="m-close" id="moreClose">✕</button>
+    </div>
+    <div class="more-list" id="moreList">
+      <button class="more-item" data-act="csv">⬇️ 导出设备清单 CSV</button>
+      <button class="more-item" data-act="report">📑 导出 HTML 报告</button>
+      <button class="more-item" data-act="hist">🕘 扫描历史与变化对比</button>
+      <button class="more-item" data-act="nmap">🎯 nmap 深度扫描</button>
+      <button class="more-item" data-act="lan">📱 手机访问 / 安装到主屏幕</button>
+      <button class="more-item" data-act="theme">🌙 切换深浅色主题</button>
+    </div>
+  </div>
+</div>
+
 <!-- 手机访问 -->
 <div class="overlay" id="lanOv" hidden>
   <div class="modal" role="dialog" aria-modal="true">
@@ -250,7 +273,7 @@
   </div>
 </div>
 
-<script src="vendor/qrcode.js"></script>
-<script src="app.js"></script>
+<script src="vendor/qrcode.js?v=0.2.1"></script>
+<script src="app.js?v=0.2.1"></script>
 </body>
 </html>

@@ -20,6 +20,8 @@ const els = {
   reportBtn: $("#reportBtn"),
   lanBtn: $("#lanBtn"), lanOv: $("#lanOv"), lanClose: $("#lanClose"),
   lanOk: $("#lanOk"), lanCopy: $("#lanCopy"), lanBody: $("#lanBody"),
+  moreBtn: $("#moreBtn"), moreOv: $("#moreOv"), moreClose: $("#moreClose"),
+  moreList: $("#moreList"),
   mapBtn: $("#mapBtn"), mapPanel: $("#mapPanel"),
   mapGrid: $("#mapGrid"), mapSubnet: $("#mapSubnet"),
   grid: $("#grid"), empty: $("#empty"), lastScan: $("#lastScan"),
@@ -739,6 +741,23 @@ els.lanClose.addEventListener("click", () => { els.lanOv.hidden = true; });
 els.lanOk.addEventListener("click", () => { els.lanOv.hidden = true; });
 els.lanCopy.addEventListener("click", copyLanLink);
 els.lanOv.addEventListener("click", e => { if (e.target === els.lanOv) els.lanOv.hidden = true; });
+
+/* 手机端「更多操作」菜单 */
+els.moreBtn.addEventListener("click", () => { els.moreOv.hidden = false; });
+els.moreClose.addEventListener("click", () => { els.moreOv.hidden = true; });
+els.moreOv.addEventListener("click", e => { if (e.target === els.moreOv) els.moreOv.hidden = true; });
+els.moreList.addEventListener("click", e => {
+  const item = e.target.closest(".more-item");
+  if (!item) return;
+  const act = item.dataset.act;
+  els.moreOv.hidden = true;
+  if (act === "csv") exportCSV();
+  else if (act === "report") exportReport();
+  else if (act === "hist") openHistory();
+  else if (act === "nmap") startNmapScan();
+  else if (act === "lan") openLanModal();
+  else if (act === "theme") els.themeBtn.click();
+});
 els.mapBtn.addEventListener("click", () => {
   showMap = !showMap;
   els.mapBtn.classList.toggle("on", showMap);
@@ -778,6 +797,7 @@ document.addEventListener("keydown", e => {
     els.nmapOpts.hidden = true;
     els.histOv.hidden = true;
     els.lanOv.hidden = true;
+    els.moreOv.hidden = true;
   }
 });
 

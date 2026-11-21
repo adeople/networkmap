@@ -1,15 +1,15 @@
-/* networkmap service worker：静态资源网络优先（离线时回退缓存），API 不缓存 */
-const CACHE = "networkmap-v0.2.0";
+﻿/* networkmap service worker：静态资源网络优先（离线时回退缓存），API 不缓存 */
+const CACHE = "networkmap-v0.2.1";
 const ASSETS = [
   "./",
   "./index.html",
-  "./style.css",
-  "./app.js",
+  "./style.css?v=0.2.1",
+  "./app.js?v=0.2.1",
   "./manifest.webmanifest",
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
-  "./vendor/qrcode.js",
+  "./vendor/qrcode.js?v=0.2.1",
 ];
 
 self.addEventListener("install", event => {
