@@ -10,7 +10,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4?logo=windows&logoColor=white)](#)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-0-brightgreen.svg)](#依赖)
-[![Build EXE](https://github.com/adeople/lan-explorer/actions/workflows/build.yml/badge.svg)](https://github.com/adeople/lan-explorer/actions/workflows/build.yml)
+[![Build EXE](https://github.com/adeople/networkmap/actions/workflows/build.yml/badge.svg)](https://github.com/adeople/networkmap/actions/workflows/build.yml)
 
 </div>
 
@@ -51,14 +51,14 @@
 
 ### 方式一：直接运行 exe（无需 Python）
 
-从 [Releases](../../releases) 下载 `lan-explorer-v0.1.0.exe`，双击运行，浏览器会自动打开
+从 [Releases](../../releases) 下载 `networkmap-v0.1.0.exe`，双击运行，浏览器会自动打开
 <http://127.0.0.1:8791>。
 
 ### 方式二：源码运行（零第三方依赖）
 
 ```bat
-git clone https://github.com/adeople/lan-explorer.git
-cd lan-explorer
+git clone https://github.com/adeople/networkmap.git
+cd networkmap
 python server.py
 ```
 
@@ -106,7 +106,7 @@ python build_exe.py
 |---|---|
 | 推送到 `main` / 提交 PR | 构建 exe，启动后请求 `/api/state` 校验服务可用 |
 | Actions 页面手动 Run workflow | 同上，产物可在运行记录的 Artifacts 中下载（保留 30 天） |
-| 推送 `v*` 标签 | 构建通过后自动上传 `lan-explorer-<tag>.exe` 到对应 Release |
+| 推送 `v*` 标签 | 构建通过后自动上传 `networkmap-<tag>.exe` 到对应 Release |
 
 ```bat
 :: 发布新版本：打 tag 并推送，Actions 会自动构建并挂到 Release
@@ -139,7 +139,7 @@ git push origin v0.2.0
 ## 项目结构
 
 ```
-lan-explorer/
+networkmap/
 ├── server.py          # 内置 Web 服务与 API（标准库 http.server）
 ├── scanner.py         # 常规扫描：存活探测 / 代理端口 / 主机名 / 厂商
 ├── nmapscan.py        # nmap 深度扫描：调度 / 进度 / XML 解析 / 自愈
