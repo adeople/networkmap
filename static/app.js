@@ -158,6 +158,7 @@ function render() {
   renderGrid();
   renderFooter();
   renderAutoscanLabel();
+  renderModeItem();
   document.title = S.scanning
     ? `扫描中 ${S.progress}% · networkmap`
     : (S.nmap && S.nmap.running ? `nmap 深度扫描中 · networkmap` : "networkmap · 局域网设备与代理网关发现");
@@ -171,6 +172,13 @@ function renderAutoscanLabel() {
   if (!el) return;
   const en = !!(S.settings && S.settings.auto_scan && S.settings.auto_scan.enabled);
   el.textContent = en ? "🔁 自动巡检（每 5 分钟）：已开启" : "🔁 自动巡检（每 5 分钟）：关闭";
+}
+
+function renderModeItem() {
+  const el = document.querySelector('[data-act="mode"]');
+  if (!el) return;
+  // 仅安卓应用内显示（PC 浏览器没有模式概念）
+  el.style.display = /networkmap-android/i.test(navigator.userAgent) ? "flex" : "none";
 }
 
 function renderMap() {
@@ -877,6 +885,10 @@ els.moreList.addEventListener("click", e => {
   else if (act === "lan") openLanModal();
   else if (act === "autoscan") toggleAutoscan();
   else if (act === "notify") requestNotify();
+  else if (act === "mode") {
+    if (window.AndroidBridge && window.AndroidBridge.showLauncher) AndroidBridge.showLauncher();
+    else toast("模式切换仅在安卓应用内可用");
+  }
   else if (act === "theme") els.themeBtn.click();
 });
 
