@@ -181,7 +181,18 @@ def main():
         f.write(_png(180, 180, _render(180, full_bleed=True)))
     with open(os.path.join(static_dir, "icon-maskable-512.png"), "wb") as f:
         f.write(_png(512, 512, _render(512, full_bleed=True)))
+
+    # Android APK 启动图标（mipmap 各密度，铺满式）
+    android_res = os.path.join(ROOT, "android", "res")
+    os.makedirs(android_res, exist_ok=True)
+    for dpi, size in (("mdpi", 48), ("hdpi", 72), ("xhdpi", 96),
+                      ("xxhdpi", 144), ("xxxhdpi", 192)):
+        d = os.path.join(android_res, f"mipmap-{dpi}")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "ic_launcher.png"), "wb") as f:
+            f.write(_png(size, size, _render(size, full_bleed=True)))
     print("pwa icons:", static_dir, "(192 / 512 / maskable 512 / apple-touch 180)")
+    print("android icons:", android_res, "(mdpi~xxxhdpi)")
 
 
 if __name__ == "__main__":

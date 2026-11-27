@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import socket
 import sys
 import threading
 import webbrowser
@@ -57,6 +58,56 @@ def _lan_ip() -> str:
         return scanner._self_ip_via_socket() or ""
     except Exception:
         return ""
+
+
+_discovery_stop = threading.Event()
+
+
+def _pick_lan_ip(peer_ip: str) -> str:
+    """从本机所有 IPv4 里选与询问方同网段的地址（避开 TUN/VPN 网段）"""
+    try:
+        candidates = socket.gethostbyname_ex(socket.gethostname())[2]
+    except Exception:
+        return ""
+    prefix = peer_ip.rsplit(".", 1)[0]
+    for c in candidates:
+        if c != peer_ip and c.rsplit(".", 1)[0] == prefix:
+            return c
+    return ""
+
+
+def _start_discovery_responder():
+    """手机 APK 的自动发现应答：UDP 8790 广播询问 -> 回 JSON 地址"""
+    def run():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(("0.0.0.0", 8790))
+            s.settimeout(1.0)
+            while not _discovery_stop.is_set():
+                try:
+                    data, addr = s.recvfrom(1024)
+                    if b"networkmap-discover" not in data:
+                        continue
+                    if not LAN["enabled"] or not LAN["url"]:
+                        continue
+                    # 手机从 192.168.1.x 询问时，优先应答同网段的地址
+                    url = LAN["url"]
+                    same = _pick_lan_ip(addr[0])
+                    if same:
+                        port_s = url.rsplit(":", 1)[-1].rstrip("/")
+                        url = f"http://{same}:{port_s}/"
+                    reply = json.dumps({"v": 1, "url": url, "name": "networkmap"}).encode()
+                    s.sendto(reply, addr)
+                except socket.timeout:
+                    continue
+                except OSError:
+                    break
+            s.close()
+        except OSError:
+            pass
+
+    threading.Thread(target=run, name="nm-discovery", daemon=True).start()
 
 
 # ---------------------------------------------------------------- 备注
@@ -422,9 +473,11 @@ def main():
 
     # 局域网（手机访问）模式
     if lan_mode:
-        ip = _lan_ip()
+        ip = (scanner.get_info().get("ip") or "") or _lan_ip()  # 物理网卡优先，避开 TUN
         LAN.update(enabled=True, ip=ip, port=port,
                    url=f"http://{ip}:{port}/" if ip else "")
+        if LAN["url"]:
+            _start_discovery_responder()  # 手机 APK UDP 自动发现
 
     print("=" * 52)
     print("  networkmap 已启动:", url)
