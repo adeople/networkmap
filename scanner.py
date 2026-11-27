@@ -124,8 +124,11 @@ def _run():
 
 _PS_INFO = r"""
 $ErrorActionPreference='SilentlyContinue';
-$cfg = Get-NetIPConfiguration -Detailed | Where-Object {$_.IPv4Address -and $_.IPv4DefaultGateway} | Select-Object -First 1;
-if (-not $cfg) { $cfg = Get-NetIPConfiguration -Detailed | Where-Object {$_.IPv4Address} | Select-Object -First 1 }
+$bad = 'TAP|TUN|VPN|WireGuard|Clash|Kuua|Karing|sing-box|Hyper-V|VirtualBox|vEthernet|Loopback|WSL|OpenVPN|ZeroTier|Tailscale|frpc|Pcap';
+$all = Get-NetIPConfiguration -Detailed | Where-Object {$_.IPv4Address};
+$cfg = $all | Where-Object {$_.IPv4DefaultGateway -and $_.InterfaceDescription -notmatch $bad} | Sort-Object {($_.IPv4DefaultGateway | Select-Object -First 1).RouteMetric} | Select-Object -First 1;
+if (-not $cfg) { $cfg = $all | Where-Object {$_.IPv4DefaultGateway} | Sort-Object {($_.IPv4DefaultGateway | Select-Object -First 1).RouteMetric} | Select-Object -First 1 }
+if (-not $cfg) { $cfg = $all | Select-Object -First 1 }
 if ($cfg) {
   $ad = Get-NetAdapter -InterfaceIndex $cfg.InterfaceIndex -ErrorAction SilentlyContinue;
   [pscustomobject]@{
@@ -436,6 +439,28 @@ def _in_net(ip: str, net: ipaddress._BaseNetwork) -> bool:
         return ipaddress.ip_address(ip) in net
     except ValueError:
         return False
+
+
+def wake_on_lan(mac: str) -> bool:
+    """发送 Wake-on-LAN 魔术包（UDP 广播 9/7 端口），成功发送返回 True"""
+    mac = (mac or "").upper().replace("-", ":").strip()
+    if not re.match(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$", mac):
+        return False
+    packet = b"\xff" * 6 + bytes.fromhex(mac.replace(":", "")) * 16
+    sent = False
+    for port in (9, 7):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                s.settimeout(1.0)
+                s.sendto(packet, ("255.255.255.255", port))
+                sent = True
+            finally:
+                s.close()
+        except OSError:
+            continue
+    return sent
 
 
 # ---------------------------------------------------------------- 主流程

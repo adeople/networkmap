@@ -216,6 +216,17 @@ h1 { font-size: 18px; margin: 0; letter-spacing: .3px; }
 .prog.nmap i { background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
 
 /* 弹窗内 nmap 结果 */
+/* ---------- 设备快捷操作 ---------- */
+.m-links { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.link-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 6px 11px; font-size: 12px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--card2); color: var(--text);
+  cursor: pointer; text-decoration: none; font-family: inherit;
+  transition: border-color .15s, background .15s;
+}
+.link-chip:hover { border-color: var(--acc1); background: var(--card); color: var(--text); }
+
 .m-nmap {
   margin: 0 0 12px; padding: 12px 14px; border-radius: 12px;
   background: rgba(59,130,246,.07); border: 1px solid rgba(59,130,246,.25);

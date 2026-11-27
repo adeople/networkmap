@@ -27,12 +27,17 @@ import paths
 ROOT = paths.DATA_DIR
 STATIC = paths.STATIC_DIR
 NOTES_FILE = paths.data_file("notes.json")
+SETTINGS_FILE = paths.data_file("settings.json")
 DEFAULT_PORT = 8791
 
 # 局域网访问状态（--lan 时启用，手机扫码直接打开，无需登录）
 LAN = {"enabled": False, "ip": "", "port": DEFAULT_PORT, "url": ""}
 
+DEFAULT_SETTINGS = {"auto_scan": {"enabled": False, "interval_min": 5}}
+
 _notes_lock = threading.Lock()
+_settings_lock = threading.Lock()
+_autoscan = {"thread": None, "stop": None}
 
 CONTENT_TYPES = {
     ".html": "text/html; charset=utf-8",
@@ -72,20 +77,68 @@ def _save_notes(notes: dict) -> None:
     os.replace(tmp, NOTES_FILE)
 
 
-def _save_note(key: str, alias: str, note: str) -> bool:
+def _save_note(key: str, alias: str, note: str, dtype: str = "") -> bool:
     key = (key or "").strip()
     if not key or len(key) > 40:
         return False
     alias = (alias or "").strip()[:60]
     note = (note or "").strip()[:500]
+    dtype = (dtype or "").strip()[:20]
     with _notes_lock:
         notes = _load_notes()
-        if not alias and not note:
-            notes.pop(key, None)  # 两项都清空即删除备注
+        if not alias and not note and not dtype:
+            notes.pop(key, None)  # 三项都清空即删除备注
         else:
-            notes[key] = {"alias": alias, "note": note}
+            notes[key] = {"alias": alias, "note": note, "type": dtype}
         _save_notes(notes)
     return True
+
+
+# ---------------------------------------------------------------- 设置 / 自动巡检
+
+def _load_settings() -> dict:
+    merged = json.loads(json.dumps(DEFAULT_SETTINGS))  # 深拷贝默认值
+    try:
+        with open(SETTINGS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            merged.update(data)
+    except Exception:
+        pass
+    return merged
+
+
+def _save_settings(s: dict) -> None:
+    tmp = SETTINGS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(s, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, SETTINGS_FILE)
+
+
+def _apply_autoscan():
+    """按当前设置启动/停止后台巡检线程"""
+    if _autoscan["stop"]:
+        _autoscan["stop"].set()
+    _autoscan.update(thread=None, stop=None)
+    s = _load_settings()
+    as_ = s.get("auto_scan") or {}
+    if not as_.get("enabled"):
+        return
+    interval_min = as_.get("interval_min") if isinstance(as_.get("interval_min"), int) else 5
+    interval_min = max(1, min(60, interval_min))
+    stop = threading.Event()
+
+    def run():
+        while not stop.wait(interval_min * 60):
+            try:
+                if not scanner.state_snapshot()["scanning"]:
+                    scanner.start_scan()
+            except Exception:
+                pass
+
+    t = threading.Thread(target=run, name="autoscan", daemon=True)
+    _autoscan.update(thread=t, stop=stop)
+    t.start()
 
 
 # ---------------------------------------------------------------- 请求处理
@@ -157,10 +210,15 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/nmap":
                 self._api_nmap(data)
             elif path == "/api/notes":
-                if _save_note(data.get("key", ""), data.get("alias", ""), data.get("note", "")):
+                if _save_note(data.get("key", ""), data.get("alias", ""),
+                              data.get("note", ""), data.get("type", "")):
                     self._send(200, {"ok": True})
                 else:
                     self._send_json_error(400, "无效的备注数据")
+            elif path == "/api/settings":
+                self._api_settings(data)
+            elif path == "/api/wol":
+                self._api_wol(data)
             else:
                 self._send_json_error(404, "not found")
         except Exception as e:
@@ -170,6 +228,31 @@ class Handler(BaseHTTPRequestHandler):
                 pass
 
     # -- 业务 --
+    def _api_settings(self, data: dict):
+        """读取/更新设置：{auto_scan:{enabled,interval_min}}"""
+        with _settings_lock:
+            s = _load_settings()
+            if isinstance(data.get("auto_scan"), dict):
+                cur = s.setdefault("auto_scan", {})
+                cur["enabled"] = bool(data["auto_scan"].get("enabled"))
+                try:
+                    iv = int(data["auto_scan"].get("interval_min") or 5)
+                    cur["interval_min"] = max(1, min(60, iv))
+                except (TypeError, ValueError):
+                    cur["interval_min"] = 5
+                _save_settings(s)
+            _apply_autoscan()
+            self._send(200, {"ok": True, "settings": s})
+
+    def _api_wol(self, data: dict):
+        """发送 Wake-on-LAN 魔术包"""
+        mac = (data.get("mac") or "").strip()
+        ok = scanner.wake_on_lan(mac)
+        if ok:
+            self._send(200, {"ok": True, "mac": mac.upper().replace("-", ":")})
+        else:
+            self._send(200, {"ok": False, "error": "MAC 地址无效或发送失败"})
+
     def _api_nmap(self, data: dict):
         """启动 nmap 深度扫描。目标可为 IP/CIDR/范围；缺省取最近常规扫描的在线设备"""
         if not nmapscan.nmap_exe():
@@ -236,7 +319,8 @@ class Handler(BaseHTTPRequestHandler):
             memo = notes.get(d.get("key", "")) or {}
             d["alias"] = memo.get("alias", "")
             d["note"] = memo.get("note", "")
-            d["has_note"] = bool(d["alias"] or d["note"])
+            d["type"] = memo.get("type", "")
+            d["has_note"] = bool(d["alias"] or d["note"] or d["type"])
         info = scanner.get_info()
         info["lan"] = {
             "enabled": LAN["enabled"],
@@ -268,6 +352,7 @@ class Handler(BaseHTTPRequestHandler):
             "duration": snap["duration"],
             "devices": devices,
             "info": info,
+            "settings": _load_settings(),
             "nmap": {
                 "available": nmapscan.nmap_exe() is not None,
                 "running": nmap_snap["running"],
@@ -355,6 +440,13 @@ def main():
     if paths.FROZEN:
         print("  关闭本窗口即退出工具")
     print("=" * 52)
+
+    # 按设置启动后台自动巡检
+    s = _load_settings()
+    if (s.get("auto_scan") or {}).get("enabled"):
+        _apply_autoscan()
+        print(f"  🔁 自动巡检已开启（每 {max(1, min(60, (s['auto_scan'].get('interval_min') or 5)))} 分钟）")
+
     if "--no-open" not in args:
         threading.Timer(0.8, webbrowser.open, [url]).start()
     try:

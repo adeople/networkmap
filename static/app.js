@@ -18,6 +18,7 @@ const els = {
   histBtn: $("#histBtn"), histOv: $("#histOv"), histClose: $("#histClose"),
   histList: $("#histList"), histDiff: $("#histDiff"),
   reportBtn: $("#reportBtn"),
+  mType: $("#mType"), mLinks: $("#mLinks"),
   lanBtn: $("#lanBtn"), lanOv: $("#lanOv"), lanClose: $("#lanClose"),
   lanOk: $("#lanOk"), lanCopy: $("#lanCopy"), lanBody: $("#lanBody"),
   moreBtn: $("#moreBtn"), moreOv: $("#moreOv"), moreClose: $("#moreClose"),
@@ -36,8 +37,20 @@ const els = {
 
 const S = {
   info: null, devices: [], scanning: false, phase: "", progress: 0, detail: "",
-  last_ts: 0, duration: 0, error: null, nmap: null,
+  last_ts: 0, duration: 0, error: null, nmap: null, settings: null,
   filter: "all", q: "", editingKey: null, firstLoadDone: false,
+  lastSeenScanTs: 0,
+};
+
+/* ---------------- 设备类型 ---------------- */
+const TYPE_ICONS = {
+  phone: "📱", pc: "💻", tv: "📺", printer: "🖨️", nas: "🗄️",
+  camera: "📷", router: "🌐", console: "🎮", iot: "🔌",
+};
+const TYPE_NAMES = {
+  phone: "📱 手机/平板", pc: "💻 电脑", tv: "📺 电视/盒子", printer: "🖨️ 打印机",
+  nas: "🗄️ NAS", camera: "📷 摄像头", router: "🌐 路由器", console: "🎮 游戏机",
+  iot: "🔌 智能设备",
 };
 
 /* ---------------- 工具 ---------------- */
@@ -70,6 +83,8 @@ function relTime(ts) {
 }
 
 function deviceIcon(d) {
+  // 用户标注的设备类型优先
+  if (d.type && TYPE_ICONS[d.type]) return TYPE_ICONS[d.type];
   if (d.is_gateway) return "🌐";
   if (d.proxy_confirmed) return "🛡️";
   if (d.is_self) return "💻";
@@ -104,9 +119,14 @@ async function refresh() {
       info: st.info, devices: st.devices, scanning: st.scanning,
       phase: st.phase, progress: st.progress, detail: st.detail,
       last_ts: st.last_ts, duration: st.duration, error: st.error,
-      nmap: st.nmap || null,
+      nmap: st.nmap || null, settings: st.settings || null,
     });
     render();
+    // 每次扫描结束后对比基线，发现新设备时提醒
+    if (S.last_ts && S.last_ts !== S.lastSeenScanTs) {
+      S.lastSeenScanTs = S.last_ts;
+      diffNotify();
+    }
     S.firstLoadDone = true;
     // 首次打开且从未扫描过 → 自动开始一次扫描
     if (S.firstLoadDone && !S.scanning && !S.last_ts && !autoScanTried) {
@@ -137,6 +157,7 @@ function render() {
   renderMap();
   renderGrid();
   renderFooter();
+  renderAutoscanLabel();
   document.title = S.scanning
     ? `扫描中 ${S.progress}% · networkmap`
     : (S.nmap && S.nmap.running ? `nmap 深度扫描中 · networkmap` : "networkmap · 局域网设备与代理网关发现");
@@ -144,6 +165,13 @@ function render() {
 
 /* ---------------- 子网地图 ---------------- */
 let showMap = false;
+
+function renderAutoscanLabel() {
+  const el = document.querySelector('[data-act="autoscan"]');
+  if (!el) return;
+  const en = !!(S.settings && S.settings.auto_scan && S.settings.auto_scan.enabled);
+  el.textContent = en ? "🔁 自动巡检（每 5 分钟）：已开启" : "🔁 自动巡检（每 5 分钟）：关闭";
+}
 
 function renderMap() {
   els.mapPanel.hidden = !showMap;
@@ -282,6 +310,7 @@ function matchFilter(d) {
   if (S.filter === "noted" && !d.has_note) return false;
   if (S.q) {
     const hay = [d.ip, d.mac, d.vendor, d.hostname, d.alias, d.note, d.os_guess,
+      TYPE_NAMES[d.type] || "",
       ...d.ports.map(p => `${p.port} ${p.name} ${p.kind}`)].join(" ").toLowerCase();
     if (!hay.includes(S.q)) return false;
   }
@@ -332,8 +361,9 @@ function card(d) {
 
   const alias = d.alias || "";
   const note = d.note || "";
+  const typeName = d.type ? (TYPE_NAMES[d.type] || "") : "";
   const noteHtml = d.has_note
-    ? `<em>${alias ? `<span class="n-alias">📝 ${esc(alias)}</span>` : `<span>📝</span>`}${note ? `<span class="n-text">${esc(note)}</span>` : ""}</em>`
+    ? `<em>${alias ? `<span class="n-alias">📝 ${esc(alias)}</span>` : `<span>📝</span>`}${note ? `<span class="n-text">${esc(note)}</span>` : (!alias && typeName ? `<span class="n-text">${esc(typeName)}</span>` : "")}</em>`
     : `<span class="n-hint">点击添加备注…</span>`;
 
   const cls = ["card", d.is_gateway ? "gw" : "", (d.proxy_confirmed || d.ports.length) ? "px" : "",
@@ -392,6 +422,10 @@ function openModal(key) {
     (d.proxy_kinds.length ? `　代理类型：<b>${esc(d.proxy_kinds.join("、"))}</b>` : "");
   els.mAlias.value = d.alias || "";
   els.mNote.value = d.note || "";
+  els.mType.value = d.type || "";
+  // 快捷操作：管理页 / 文件共享 / 远程桌面 / SSH / 网络唤醒（对标 Advanced IP Scanner）
+  els.mLinks.innerHTML = quickLinksHtml(d);
+  els.mLinks.hidden = !els.mLinks.innerHTML;
   // nmap 深度扫描结果区块（端口 / 服务指纹 / NSE 脚本 / OS 猜测）
   const nm = d.nmap;
   const nmPorts = (nm && nm.ports) || [];
@@ -428,6 +462,88 @@ function openModal(key) {
 
 function closeModal() { els.overlay.hidden = true; S.editingKey = null; }
 
+/* 快捷操作（对标 Advanced IP Scanner 的右键菜单） */
+function quickLinksHtml(d) {
+  const chips = [];
+  const nports = (d.nmap && d.nmap.ports) ? d.nmap.ports.map(p => p.port) : [];
+  const lports = d.ports.map(p => p.port);
+  const has = p => nports.includes(p) || lports.includes(p);
+  chips.push(`<a class="link-chip" href="http://${esc(d.ip)}/" target="_blank" rel="noopener">🌐 管理页</a>`);
+  if (has(443) || has(8443)) {
+    chips.push(`<a class="link-chip" href="https://${esc(d.ip)}/" target="_blank" rel="noopener">🔒 HTTPS</a>`);
+  }
+  if (has(445) || has(139)) {
+    chips.push(`<a class="link-chip" href="file://${esc(d.ip)}/">📂 共享文件夹</a>`);
+  }
+  if (has(3389)) {
+    chips.push(`<button class="link-chip" data-copy="mstsc /v:${esc(d.ip)}">🖥️ 复制远程桌面命令</button>`);
+  }
+  if (has(22)) {
+    chips.push(`<button class="link-chip" data-copy="ssh user@${esc(d.ip)}">⌨️ 复制 SSH 命令</button>`);
+  }
+  if (d.mac) {
+    chips.push(`<button class="link-chip" data-wol="${esc(d.mac)}" data-ip="${esc(d.ip)}">⚡ 网络唤醒${d.alive ? "（再次发送）" : ""}</button>`);
+  }
+  return chips.join("");
+}
+
+async function sendWol(mac, ip) {
+  try {
+    const r = await post("/api/wol", { mac });
+    if (r.ok) toast(`⚡ 已向 ${ip || mac} 发送唤醒包，开机可能需要 30 秒`);
+    else toast(r.error || "唤醒包发送失败");
+  } catch (e) { toast("请求失败"); }
+}
+
+/* ---------------- 新设备提醒 ---------------- */
+function aliveList() {
+  return S.devices.filter(d => d.alive).map(d => d.ip);
+}
+
+function diffNotify() {
+  if (!S.last_ts) return;
+  const prev = JSON.parse(localStorage.getItem("nm.alive") || "null");
+  const alive = aliveList();
+  localStorage.setItem("nm.alive", JSON.stringify(alive));
+  if (prev === null) return;  // 首次建立基线
+  const newOnes = alive.filter(ip => !prev.includes(ip));
+  if (!newOnes.length) return;
+  const names = newOnes.map(ip => {
+    const d = S.devices.find(x => x.ip === ip);
+    return d && (d.alias || d.hostname) ? `${ip}（${d.alias || d.hostname}）` : ip;
+  });
+  toast(`🔔 发现新设备：${names.join("、")}`);
+  const body = names.join("\n");
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try { new Notification("networkmap · 发现新设备", { body, tag: "nm-new-device" }); } catch (e) {}
+  }
+}
+
+function requestNotify() {
+  if (typeof Notification === "undefined") {
+    toast("当前浏览器不支持通知，将以页面提示代替");
+    return;
+  }
+  if (Notification.permission === "granted") { toast("✅ 新设备提醒已开启"); return; }
+  Notification.requestPermission().then(p => {
+    toast(p === "granted" ? "🔔 提醒已开启，扫描发现新设备时会通知" : "浏览器拒绝了通知权限");
+  });
+}
+
+async function toggleAutoscan() {
+  const cur = S.settings && S.settings.auto_scan ? S.settings.auto_scan : { enabled: false };
+  try {
+    const r = await post("/api/settings", { auto_scan: { enabled: !cur.enabled, interval_min: 5 } });
+    if (r.ok) {
+      S.settings = r.settings;
+      render();
+      toast(r.settings.auto_scan.enabled
+        ? "🔁 自动巡检已开启：每 5 分钟后台扫描一次"
+        : "自动巡检已关闭");
+    } else toast("设置失败");
+  } catch (e) { toast("请求失败"); }
+}
+
 async function saveNote(del) {
   const key = S.editingKey;
   if (!key) return;
@@ -435,13 +551,14 @@ async function saveNote(del) {
     key,
     alias: del ? "" : els.mAlias.value,
     note: del ? "" : els.mNote.value,
+    type: del ? "" : els.mType.value,
   };
   const r = await post("/api/notes", body);
   if (r.ok) {
     const d = S.devices.find(x => x.key === key);
     if (d) {
-      d.alias = body.alias; d.note = body.note;
-      d.has_note = !!(body.alias || body.note);
+      d.alias = body.alias; d.note = body.note; d.type = body.type;
+      d.has_note = !!(body.alias || body.note || body.type);
     }
     closeModal(); render();
     toast(del ? "备注已删除" : "备注已保存");
@@ -453,7 +570,7 @@ async function saveNote(del) {
 /* ---------------- 导出 CSV ---------------- */
 function exportCSV() {
   if (!S.devices.length) { toast("还没有可导出的数据"); return; }
-  const rows = [["IP", "MAC", "厂商", "主机名", "备注名称", "备注", "状态", "系统猜测", "发现方式", "代理端口", "nmap端口", "标签"]];
+  const rows = [["IP", "MAC", "厂商", "主机名", "设备类型", "备注名称", "备注", "状态", "系统猜测", "发现方式", "代理端口", "nmap端口", "标签"]];
   for (const d of S.devices.slice().sort((a, b) =>
     ipNum(a.ip).reduce((s, n) => s * 1000 + n, 0) - ipNum(b.ip).reduce((s, n) => s * 1000 + n, 0))) {
     const tags = [];
@@ -465,7 +582,9 @@ function exportCSV() {
       .map(p => `${p.port}/${p.proto} ${[p.service, p.product].filter(Boolean).join(" ")}`.trim())
       .join("、") : "";
     rows.push([
-      d.ip, d.mac, d.vendor, d.hostname, d.alias, d.note,
+      d.ip, d.mac, d.vendor, d.hostname,
+      d.type ? (TYPE_NAMES[d.type] || d.type) : "",
+      d.alias, d.note,
       d.alive ? "在线" : "离线", d.os_guess,
       d.via.map(v => ({ ping: "Ping", tcp: "TCP", arp: "ARP" }[v] || v)).join("+"),
       d.ports.map(p => `${p.port} ${p.name}${p.kind ? "(" + p.kind + ")" : ""}`).join(" "),
@@ -756,7 +875,27 @@ els.moreList.addEventListener("click", e => {
   else if (act === "hist") openHistory();
   else if (act === "nmap") startNmapScan();
   else if (act === "lan") openLanModal();
+  else if (act === "autoscan") toggleAutoscan();
+  else if (act === "notify") requestNotify();
   else if (act === "theme") els.themeBtn.click();
+});
+
+/* 快捷操作芯片：复制命令 / 网络唤醒 */
+document.addEventListener("click", e => {
+  const chip = e.target.closest(".link-chip");
+  if (!chip || !chip.dataset.copy) return;
+  e.preventDefault();
+  navigator.clipboard.writeText(chip.dataset.copy)
+    .then(() => toast("已复制：" + chip.dataset.copy))
+    .catch(() => toast("复制失败"));
+  e.stopPropagation();
+});
+document.addEventListener("click", e => {
+  const chip = e.target.closest("[data-wol]");
+  if (!chip) return;
+  e.preventDefault();
+  e.stopPropagation();
+  sendWol(chip.dataset.wol, chip.dataset.ip);
 });
 els.mapBtn.addEventListener("click", () => {
   showMap = !showMap;
